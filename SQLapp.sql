@@ -113,7 +113,7 @@ CREATE TABLE ALERTA (
     CONSTRAINT PK_ALERTA PRIMARY KEY CLUSTERED (ID_ALERTA ASC),
     CONSTRAINT FK_ALERTA_HISTORIAL FOREIGN KEY (ID_HISTORIAL) REFERENCES HISTORIAL(ID_HISTORIAL),
     CONSTRAINT FK_ALERTA_ENCARGADO FOREIGN KEY (ID_ENCARGADO) REFERENCES USUARIO(ID_USUARIO)
-) ON [PRIMARY]
+) ON [PRIMARY]
 GO
 
 CREATE TRIGGER trg_ValidarTiposDeUsuarios
@@ -460,10 +460,81 @@ BEGIN
     END CATCH
 END;
 GO
+CREATE PROCEDURE SP_MostrarEncargadosPorPaciente
+    @ID_PACIENTE BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        -- Verificar si el paciente existe y es de tipo 'Paciente'
+        IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE ID_USUARIO = @ID_PACIENTE AND TIPO = 'Paciente')
+        BEGIN
+            PRINT 'El usuario especificado no existe o no es un paciente.';
+            RETURN;
+        END
+        
+        -- Seleccionar los datos de los encargados relacionados con el paciente
+        SELECT 
+            U.ID_USUARIO,
+            U.NOMBRE,
+            U.APELLIDO1,
+            U.APELLIDO2,
+            U.CORREO_ELECTRONICO,
+            U.USUARIO,
+            U.FECHA_NACIMIENTO,
+            U.UBICACION,
+            SC.FECHA_SOLICITUD AS FECHA_RELACION
+        FROM USUARIO U
+        INNER JOIN SOLICITUD_CUIDADOR SC ON U.ID_USUARIO = SC.ID_USUARIO_SOLICITANTE
+        WHERE SC.ID_USUARIO_DESTINATARIO = @ID_PACIENTE
+        AND SC.ESTADO = 'Aceptada';
+    END TRY
+    BEGIN CATCH
+        PRINT ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
+CREATE PROCEDURE SP_MostrarDatosUsuario
+    @ID_USUARIO BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        -- Verificar si el usuario existe
+        IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE ID_USUARIO = @ID_USUARIO)
+        BEGIN
+            PRINT 'El usuario no existe.';
+            RETURN;
+        END
+        
+        -- Seleccionar los datos del usuario
+        SELECT 
+            ID_USUARIO,
+            NOMBRE,
+            APELLIDO1,
+            APELLIDO2,
+            CORREO_ELECTRONICO,
+            USUARIO,
+            FECHA_NACIMIENTO,
+            TIPO,
+            UBICACION,
+            IMAGEN,
+            USUARIO_PACIENTE
+        FROM USUARIO
+        WHERE ID_USUARIO = @ID_USUARIO;
+    END TRY
+    BEGIN CATCH
+        PRINT ERROR_MESSAGE();
+    END CATCH
+END;
+GO
 
 CREATE PROCEDURE EliminarSolicitud
     @ID_SOLICITUD BIGINT,
-    @ID_USUARIO_ENCARGADO BIGINT,
+    @ID_USUARIO BIGINT,
     @ref_errorIdBD INT OUTPUT,
     @ref_errorMsgBD NVARCHAR(255) OUTPUT
 AS
@@ -483,16 +554,16 @@ BEGIN
             RETURN;
         END
         
-        -- Verify if user is authorized to delete
+        -- Verify if user is authorized to delete (either the solicitante or the destinatario)
         IF NOT EXISTS (
             SELECT 1
             FROM SOLICITUD_cuidador s
             WHERE s.ID_SOLICITUD = @ID_SOLICITUD
-            AND s.ID_USUARIO_SOLICITANTE = @ID_USUARIO_ENCARGADO
+            AND (s.ID_USUARIO_SOLICITANTE = @ID_USUARIO OR s.ID_USUARIO_DESTINATARIO = @ID_USUARIO)
         )
         BEGIN
             SET @ref_errorIdBD = 2;
-            SET @ref_errorMsgBD = 'Solo el encargado puede eliminar esta solicitud.';
+            SET @ref_errorMsgBD = 'Solo los usuarios relacionados con esta solicitud pueden eliminarla.';
             RETURN;
         END
         
@@ -506,7 +577,7 @@ BEGIN
         SET @ref_errorMsgBD = ERROR_MESSAGE();
     END CATCH
 END;
-GO
+go
 
 CREATE PROCEDURE SP_ListarDispositivosPorUsuario
     @ID_USUARIO BIGINT
@@ -1116,6 +1187,6 @@ BEGIN
     BEGIN CATCH
         SET @ref_errorIdBD = ERROR_NUMBER(); -- Error inesperado
         SET @ref_errorMsgBD = ERROR_MESSAGE(); -- Descripción del error
-    END CATCH
+    END CATCH
 END;
 GO
