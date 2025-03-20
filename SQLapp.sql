@@ -509,43 +509,21 @@ END;
 GO
 
 CREATE PROCEDURE SP_ListarDispositivosPorUsuario
-    @ID_USUARIO BIGINT,
-    @ref_errorIdBD INT OUTPUT,
-    @ref_errorMsgBD NVARCHAR(255) OUTPUT
+    @ID_USUARIO BIGINT
 AS
 BEGIN
     SET NOCOUNT ON;
-    
-    -- Initialize output parameters
-    SET @ref_errorIdBD = 0;
-    SET @ref_errorMsgBD = NULL;
-    
-    BEGIN TRY
-        -- Verify user exists
-        IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE ID_USUARIO = @ID_USUARIO)
-        BEGIN
-            SET @ref_errorIdBD = 1;
-            SET @ref_errorMsgBD = 'El usuario no existe.';
-            RETURN;
-        END
-        
-        -- Select registered devices for specific user
-        SELECT 
-            ID_DISPOSITIVO,
-            DIRECCION_IP,
-            NOMBRE_DISPOSITIVO,
-            ACTIVO,
-            ULTIMA_VEZ
-        FROM DISPOSITIVOS
-        WHERE ID_USUARIO = @ID_USUARIO
-        ORDER BY ID_DISPOSITIVO;
-        
-        SET @ref_errorMsgBD = 'Dispositivos listados exitosamente.';
-    END TRY
-    BEGIN CATCH
-        SET @ref_errorIdBD = ERROR_NUMBER();
-        SET @ref_errorMsgBD = ERROR_MESSAGE();
-    END CATCH
+
+    -- Seleccionar los dispositivos registrados del usuario específico
+    SELECT 
+        ID_DISPOSITIVO,
+        DIRECCION_IP,
+		NOMBRE_DISPOSITIVO,
+        ACTIVO,
+		ULTIMA_VEZ
+    FROM DISPOSITIVOS
+    WHERE ID_USUARIO = @ID_USUARIO
+    ORDER BY ID_DISPOSITIVO;
 END;
 GO
 
@@ -622,43 +600,18 @@ END;
 GO
 
 CREATE PROCEDURE SP_VisualizarSolicitudes
-    @ID_USUARIO BIGINT,
-    @ref_errorIdBD INT OUTPUT,
-    @ref_errorMsgBD NVARCHAR(255) OUTPUT
+    @ID_USUARIO BIGINT
 AS
 BEGIN
-    SET NOCOUNT ON;
-    
-    -- Initialize output parameters
-    SET @ref_errorIdBD = 0;
-    SET @ref_errorMsgBD = NULL;
-    
-    BEGIN TRY
-        -- Verify user exists
-        IF NOT EXISTS (SELECT 1 FROM USUARIO WHERE ID_USUARIO = @ID_USUARIO)
-        BEGIN
-            SET @ref_errorIdBD = 1;
-            SET @ref_errorMsgBD = 'El usuario no existe.';
-            RETURN;
-        END
-        
-        -- Select solicitudes
-        SELECT 
-            SC.ID_SOLICITUD,
-            USOLICITANTE.NOMBRE + ' ' + USOLICITANTE.APELLIDO1 + ' ' + ISNULL(USOLICITANTE.APELLIDO2, '') AS SOLICITANTE,
-            UDESTINATARIO.NOMBRE + ' ' + UDESTINATARIO.APELLIDO1 + ' ' + ISNULL(UDESTINATARIO.APELLIDO2, '') AS DESTINATARIO,
-            SC.ESTADO
-        FROM SOLICITUD_CUIDADOR SC
-        INNER JOIN USUARIO USOLICITANTE ON SC.ID_USUARIO_SOLICITANTE = USOLICITANTE.ID_USUARIO
-        INNER JOIN USUARIO UDESTINATARIO ON SC.ID_USUARIO_DESTINATARIO = UDESTINATARIO.ID_USUARIO
-        WHERE SC.ID_USUARIO_SOLICITANTE = @ID_USUARIO OR SC.ID_USUARIO_DESTINATARIO = @ID_USUARIO;
-        
-        SET @ref_errorMsgBD = 'Solicitudes visualizadas exitosamente.';
-    END TRY
-    BEGIN CATCH
-        SET @ref_errorIdBD = ERROR_NUMBER();
-        SET @ref_errorMsgBD = ERROR_MESSAGE();
-    END CATCH
+    SELECT 
+        SC.ID_SOLICITUD,
+        USOLICITANTE.NOMBRE + ' ' + USOLICITANTE.APELLIDO1 + ' ' + ISNULL(USOLICITANTE.APELLIDO2, '') AS SOLICITANTE,
+        UDESTINATARIO.NOMBRE + ' ' + UDESTINATARIO.APELLIDO1 + ' ' + ISNULL(UDESTINATARIO.APELLIDO2, '') AS DESTINATARIO,
+        SC.ESTADO
+    FROM SOLICITUD_CUIDADOR SC
+    INNER JOIN USUARIO USOLICITANTE ON SC.ID_USUARIO_SOLICITANTE = USOLICITANTE.ID_USUARIO
+    INNER JOIN USUARIO UDESTINATARIO ON SC.ID_USUARIO_DESTINATARIO = UDESTINATARIO.ID_USUARIO
+    WHERE SC.ID_USUARIO_SOLICITANTE = @ID_USUARIO OR SC.ID_USUARIO_DESTINATARIO = @ID_USUARIO;
 END;
 GO
 -- EDITAR INFORMACIÓN DE UN USUARIO
